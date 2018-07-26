@@ -7,18 +7,28 @@
 //
 
 import UIKit
+import os.log
 
-class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+class MealViewController: UIViewController, UITextFieldDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     //MARK: Properties
     
     @IBOutlet weak var nameTextField: UITextField!
-    @IBOutlet weak var mealNameLable: UILabel!
     @IBOutlet weak var photoImageView: UIImageView!
     @IBOutlet weak var ratingControl: RatingControl!
+    @IBOutlet weak var saveButton: UIBarButtonItem!
+    var meal:Meal?
     
     override func viewDidLoad() {
         super.viewDidLoad()
         nameTextField.delegate=self // Handle the text field’s user input through delegate callbacks.
+        
+        if let meal = meal {    //editing an existing servant(meal!=nil)
+            navigationItem.title = meal.name
+            nameTextField.text   = meal.name
+            photoImageView.image = meal.photo
+            ratingControl.rating = meal.rating
+        }
+        updateSaveButtonState()
     }
     
     //MARK: UITextFieldDelegate
@@ -28,10 +38,15 @@ class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerContro
     }
     
     func textFieldDidEndEditing(_ textField: UITextField) {
-        mealNameLable.text=textField.text
+        updateSaveButtonState()
+        navigationItem.title=textField.text
     }
     
     //MARK: UIImagePickerControllerDelegate
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        saveButton.isEnabled=false
+    }
+    
     func imagePickerControllerDidCancel(_ picker: UIImagePickerController){
         dismiss(animated: true, completion: nil)}
     
@@ -44,6 +59,20 @@ class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerContro
         dismiss(animated: true, completion: nil)    // Dismiss the picker.
     }
     
+    //MARK: Navigation
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        super.prepare(for: segue, sender: sender)
+        guard let button=sender as? UIBarButtonItem,button===saveButton else{
+            os_log("The save button was not pressed, cancelling", log: OSLog.default,
+                   type: .debug)
+            return
+        }
+        let name=nameTextField.text ?? ""
+        let photo=photoImageView.image
+        let rating=ratingControl.rating
+        meal=Meal(name: name, photo: photo, rating: rating)
+    }
+    
     //MARK: Action
     @IBAction func selectImageFromPhotoLibrary(_ sender: UITapGestureRecognizer) {
         nameTextField.resignFirstResponder()    // Hide the keyboard.
@@ -51,6 +80,22 @@ class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerContro
         imagePickerController.sourceType = .photoLibrary    // Only allow photos to be picked, not taken.
         imagePickerController.delegate = self   // Make sure ViewController is notified when the user picks an image.
         present(imagePickerController, animated: true, completion: nil)
+    }
+    
+    @IBAction func cancel(_ sender: UIBarButtonItem) {
+        let isPresentingInAddMealMode=presentingViewController is UINavigationController
+        if(isPresentingInAddMealMode){
+            dismiss(animated: true, completion: nil)
+        }else if let owningNavigationController = navigationController{
+            owningNavigationController.popViewController(animated: true)
+        }else {
+            fatalError("The MealViewController is not inside a navigation controller.")
+        }
+    }
+    
+    private func updateSaveButtonState(){
+        let text=nameTextField.text ?? ""
+        saveButton.isEnabled = !text.isEmpty
     }
 }
 

@@ -7,12 +7,14 @@
 //
 
 import UIKit
+import os.log
 
 class MealTableViewController: UITableViewController {
     var meals=[Meal]()
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        navigationItem.leftBarButtonItem=editButtonItem
         loadSampleMeals()
     }
 
@@ -35,12 +37,63 @@ class MealTableViewController: UITableViewController {
         guard let cell = tableView.dequeueReusableCell(withIdentifier: cellIdentifier, for: indexPath) as? MealTableViewCell else{
             fatalError("The dequeued cell is not an instance of MealTableViewCell.")
         }
-        
         let meal=meals[indexPath.row]
         cell.nameLabel.text=meal.name
         cell.photoImageView.image=meal.photo
         cell.ratingControl.rating=meal.rating
         return cell
+    }
+    
+    override func tableView(_ tableView:UITableView,commit editingStyle:UITableViewCellEditingStyle,forRowAt indexPath:IndexPath){
+        if editingStyle == .delete{
+            meals.remove(at: indexPath.row)
+            tableView.deleteRows(at: [indexPath], with: .fade)
+        }else if editingStyle == .insert{
+            //nothing
+        }
+    }
+    
+    override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+        return true
+    }
+    
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        super.prepare(for: segue, sender: sender)
+        switch(segue.identifier ?? ""){
+        case "AddItem":
+            os_log("Adding a new servant", log:OSLog.default,type: .debug)
+        case "ShowDetail":
+            guard let mealTableViewController=segue.destination as? MealViewController else{
+              fatalError("Unexpected destination: \(segue.destination)")
+            }
+            guard let selectedMealCell = sender as? MealTableViewCell else {
+                fatalError("Unexpected sender: \(sender)")
+            }
+        
+            guard let indexPath = tableView.indexPath(for: selectedMealCell) else {
+                fatalError("The selected cell is not being displayed by the table")
+            }
+            
+            let selectedMeal = meals[indexPath.row]
+            mealTableViewController.meal = selectedMeal
+        default:
+            fatalError("Unexpected Segue Identifier; \(segue.identifier)")
+        }
+    }
+    
+    @IBAction func unwindToMealList(sender: UIStoryboardSegue){
+        if let sourceViewController=sender.source as?
+            MealViewController, let meal=sourceViewController.meal{
+            if let seletedIndexPath=tableView.indexPathForSelectedRow{
+                meals[seletedIndexPath.row]=meal
+                tableView.reloadRows(at: [seletedIndexPath], with: .none)
+                
+            }else{
+                let newIndexPath = IndexPath(row: meals.count, section: 0)
+                meals.append(meal)
+                tableView.insertRows(at: [newIndexPath], with: .automatic)
+            }
+        }
     }
     
     private func loadSampleMeals() {
